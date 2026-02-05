@@ -1,40 +1,136 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Wearer Receiver</title>
+
   <style>
-    body { font-family: system-ui, Arial; padding: 16px; max-width: 650px; margin: 0 auto; }
-    h1 { font-size: 22px; }
-    button { font-size: 18px; padding: 12px 14px; border-radius: 12px; border: 1px solid #ccc; cursor: pointer; }
-    input { font-size: 18px; padding: 10px; width: 180px; }
-    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin: 12px 0; }
-    .small { color:#555; font-size: 14px; }
-    code { background:#f3f3f3; padding:2px 6px; border-radius:6px; }
+    body {
+      margin: 0;
+      font-family: system-ui, Arial, sans-serif;
+      background: #f5f7fa;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #2d6cdf;
+      color: white;
+      padding: 28px 16px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.8rem;
+      font-weight: 600;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 24px;
+    }
+
+    .card {
+      background: white;
+      padding: 28px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      max-width: 480px;
+      width: 100%;
+    }
+
+    .small {
+      color: #555;
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+
+    label {
+      font-size: 1rem;
+      font-weight: 500;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    input {
+      font-size: 1rem;
+      padding: 10px;
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      margin-bottom: 16px;
+    }
+
+    .button {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      margin: 10px 0;
+      background: #2d6cdf;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .button:hover {
+      background: #1f4fa8;
+    }
+
+    .status-box {
+      margin-top: 20px;
+      padding: 12px;
+      background: #eef2ff;
+      border-left: 4px solid #2d6cdf;
+      border-radius: 6px;
+      font-size: 0.95rem;
+    }
+
+    code {
+      background: #f3f3f3;
+      padding: 3px 6px;
+      border-radius: 6px;
+    }
   </style>
 </head>
+
 <body>
-  <h1>Wearer Receiver</h1>
+  <header>
+    <h1>Wearer Receiver</h1>
+  </header>
 
-  <p class="small">
-    Use <b>Android + Chrome</b> for easiest BLE connection. Keep this tab open while on the video call.
-  </p>
+  <main>
+    <div class="card">
 
-  <div class="row">
-    <label>
-      Session:
+      <p class="small">
+        For best results, use <b>Android + Chrome</b>.  
+        Keep this page open during the video call.
+      </p>
+
+      <label for="sessionId">Session ID</label>
       <input id="sessionId" value="demo123" />
-    </label>
-    <button id="firebaseBtn">Connect Firebase</button>
-  </div>
 
-  <div class="row">
-    <button id="bleBtn">Connect to Haptic Lanyard (BLE)</button>
-  </div>
+      <button class="button" id="firebaseBtn">Connect to Firebase</button>
+      <button class="button" id="bleBtn">Connect to Haptic Prototype (BLE)</button>
 
-  <p class="small">Last command: <code id="lastCmd">none</code></p>
-  <p class="small" id="status"></p>
+      <div class="status-box">
+        <p class="small">Last command: <code id="lastCmd">none</code></p>
+        <p class="small" id="status"></p>
+      </div>
+
+    </div>
+  </main>
 
   <script type="module">
     // 1) Replace with your Firebase config:
@@ -54,7 +150,6 @@
     const auth = getAuth(app);
     const db = getDatabase(app);
 
-    // Must match the ESP32 BLE service + characteristic UUIDs
     const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
     const CHAR_UUID    = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
 
@@ -77,7 +172,7 @@
         const server = await device.gatt.connect();
         const service = await server.getPrimaryService(SERVICE_UUID);
         bleChar = await service.getCharacteristic(CHAR_UUID);
-        document.getElementById("status").textContent = "BLE connected ✅";
+        document.getElementById("status").textContent = "BLE connected ✓";
       } catch (e) {
         document.getElementById("status").textContent = "BLE connect failed: " + e;
       }
@@ -88,7 +183,7 @@
       if (!session) return alert("Enter a session id");
       await signInAnonymously(auth);
 
-      document.getElementById("status").textContent = "Firebase connected ✅";
+      document.getElementById("status").textContent = "Firebase connected ✓";
 
       const cmdRef = ref(db, `sessions/${session}`);
       onValue(cmdRef, async (snap) => {
@@ -98,13 +193,11 @@
         const cmd = val.command || "";
         const ts  = val.ts || 0;
 
-        // Only act on new commands
         if (ts <= lastTs) return;
         lastTs = ts;
 
         document.getElementById("lastCmd").textContent = cmd || "none";
 
-        // Forward command to ESP32 over BLE
         if (cmd && bleChar) {
           await sendToDevice(cmd);
         }
