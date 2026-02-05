@@ -1,0 +1,115 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Wearer Receiver</title>
+  <style>
+    body { font-family: system-ui, Arial; padding: 16px; max-width: 650px; margin: 0 auto; }
+    h1 { font-size: 22px; }
+    button { font-size: 18px; padding: 12px 14px; border-radius: 12px; border: 1px solid #ccc; cursor: pointer; }
+    input { font-size: 18px; padding: 10px; width: 180px; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin: 12px 0; }
+    .small { color:#555; font-size: 14px; }
+    code { background:#f3f3f3; padding:2px 6px; border-radius:6px; }
+  </style>
+</head>
+<body>
+  <h1>Wearer Receiver</h1>
+
+  <p class="small">
+    Use <b>Android + Chrome</b> for easiest BLE connection. Keep this tab open while on the video call.
+  </p>
+
+  <div class="row">
+    <label>
+      Session:
+      <input id="sessionId" value="demo123" />
+    </label>
+    <button id="firebaseBtn">Connect Firebase</button>
+  </div>
+
+  <div class="row">
+    <button id="bleBtn">Connect to Haptic Lanyard (BLE)</button>
+  </div>
+
+  <p class="small">Last command: <code id="lastCmd">none</code></p>
+  <p class="small" id="status"></p>
+
+  <script type="module">
+    // 1) Replace with your Firebase config:
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+      projectId: "YOUR_PROJECT",
+      appId: "YOUR_APP_ID"
+    };
+
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    // Must match the ESP32 BLE service + characteristic UUIDs
+    const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+    const CHAR_UUID    = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+
+    let session = null;
+    let bleChar = null;
+    let lastTs = 0;
+
+    async function sendToDevice(text) {
+      if (!bleChar) return;
+      const enc = new TextEncoder();
+      await bleChar.writeValue(enc.encode(text));
+    }
+
+    document.getElementById("bleBtn").onclick = async () => {
+      try {
+        const device = await navigator.bluetooth.requestDevice({
+          filters: [{ name: "Haptic Lanyard" }],
+          optionalServices: [SERVICE_UUID]
+        });
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        bleChar = await service.getCharacteristic(CHAR_UUID);
+        document.getElementById("status").textContent = "BLE connected ✅";
+      } catch (e) {
+        document.getElementById("status").textContent = "BLE connect failed: " + e;
+      }
+    };
+
+    document.getElementById("firebaseBtn").onclick = async () => {
+      session = document.getElementById("sessionId").value.trim();
+      if (!session) return alert("Enter a session id");
+      await signInAnonymously(auth);
+
+      document.getElementById("status").textContent = "Firebase connected ✅";
+
+      const cmdRef = ref(db, `sessions/${session}`);
+      onValue(cmdRef, async (snap) => {
+        const val = snap.val();
+        if (!val) return;
+
+        const cmd = val.command || "";
+        const ts  = val.ts || 0;
+
+        // Only act on new commands
+        if (ts <= lastTs) return;
+        lastTs = ts;
+
+        document.getElementById("lastCmd").textContent = cmd || "none";
+
+        // Forward command to ESP32 over BLE
+        if (cmd && bleChar) {
+          await sendToDevice(cmd);
+        }
+      });
+    };
+  </script>
+</body>
+</html>
