@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Haptic Guide</title>
+  <style>
+    body { font-family: system-ui, Arial; padding: 16px; max-width: 600px; margin: 0 auto; }
+    h1 { font-size: 22px; }
+    .row { display: flex; gap: 12px; margin: 12px 0; flex-wrap: wrap; }
+    button { font-size: 18px; padding: 14px 16px; border-radius: 12px; border: 1px solid #ccc; cursor: pointer; }
+    input { font-size: 18px; padding: 10px; width: 180px; }
+    .small { color: #555; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Haptic Guide Control</h1>
+
+  <div class="row">
+    <label>
+      Session:
+      <input id="sessionId" value="demo123" />
+    </label>
+    <button id="connectBtn">Connect</button>
+  </div>
+
+  <p class="small">Use big, simple cues. Wearer should have wearer.html open on their phone with the same session ID.</p>
+
+  <div id="controls" style="display:none;">
+    <div class="row">
+      <button onclick="sendCmd('stop')">STOP</button>
+      <button onclick="sendCmd('forward')">Forward</button>
+    </div>
+
+    <div class="row">
+      <button onclick="sendCmd('turn_left')">Turn Left</button>
+      <button onclick="sendCmd('turn_right')">Turn Right</button>
+    </div>
+
+    <div class="row">
+      <button onclick="sendCmd('step_up')">Step Up</button>
+      <button onclick="sendCmd('step_down')">Step Down</button>
+    </div>
+
+    <div class="row">
+      <button onclick="sendCmd('obstacle_left')">Obstacle Left</button>
+      <button onclick="sendCmd('obstacle_right')">Obstacle Right</button>
+    </div>
+
+    <p class="small" id="status"></p>
+  </div>
+
+  <script type="module">
+    // 1) Replace with your Firebase web app config:
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+      projectId: "YOUR_PROJECT",
+      appId: "YOUR_APP_ID"
+    };
+
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+    import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    let session = null;
+
+    window.sendCmd = async function(cmd) {
+      if (!session) return;
+      const base = ref(db, `sessions/${session}`);
+      await set(ref(db, `sessions/${session}/command`), cmd);
+      await set(ref(db, `sessions/${session}/ts`), Date.now());
+      document.getElementById("status").textContent = `Sent: ${cmd}`;
+    };
+
+    document.getElementById("connectBtn").onclick = async () => {
+      session = document.getElementById("sessionId").value.trim();
+      if (!session) return alert("Enter a session id");
+      await signInAnonymously(auth);
+      document.getElementById("controls").style.display = "block";
+      document.getElementById("status").textContent = `Connected to session: ${session}`;
+    };
+  </script>
+</body>
+</html>
