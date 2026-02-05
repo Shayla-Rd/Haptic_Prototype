@@ -1,57 +1,176 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Haptic Guide</title>
+  <title>Haptic Guide Control</title>
+
   <style>
-    body { font-family: system-ui, Arial; padding: 16px; max-width: 600px; margin: 0 auto; }
-    h1 { font-size: 22px; }
-    .row { display: flex; gap: 12px; margin: 12px 0; flex-wrap: wrap; }
-    button { font-size: 18px; padding: 14px 16px; border-radius: 12px; border: 1px solid #ccc; cursor: pointer; }
-    input { font-size: 18px; padding: 10px; width: 180px; }
-    .small { color: #555; font-size: 14px; }
+    body {
+      margin: 0;
+      font-family: system-ui, Arial, sans-serif;
+      background: #f5f7fa;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #2d6cdf;
+      color: white;
+      padding: 28px 16px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.8rem;
+      font-weight: 600;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 24px;
+    }
+
+    .card {
+      background: white;
+      padding: 28px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      max-width: 480px;
+      width: 100%;
+    }
+
+    label {
+      font-size: 1rem;
+      font-weight: 500;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    input {
+      font-size: 1rem;
+      padding: 10px;
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      margin-bottom: 16px;
+    }
+
+    .button {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      margin: 10px 0;
+      background: #2d6cdf;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .button:hover {
+      background: #1f4fa8;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .cmd-btn {
+      padding: 16px;
+      font-size: 1.1rem;
+      border: none;
+      border-radius: 10px;
+      background: #e8ecf7;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .cmd-btn:hover {
+      background: #d5ddf3;
+    }
+
+    .cmd-btn.stop {
+      background: #ffdddd;
+    }
+
+    .cmd-btn.stop:hover {
+      background: #ffcccc;
+    }
+
+    .small {
+      color: #555;
+      font-size: 0.9rem;
+      margin-top: 8px;
+      line-height: 1.4;
+    }
+
+    .status-box {
+      margin-top: 20px;
+      padding: 12px;
+      background: #eef2ff;
+      border-left: 4px solid #2d6cdf;
+      border-radius: 6px;
+      font-size: 0.95rem;
+    }
   </style>
 </head>
+
 <body>
-  <h1>Haptic Guide Control</h1>
+  <header>
+    <h1>Haptic Guide Control</h1>
+  </header>
 
-  <div class="row">
-    <label>
-      Session:
+  <main>
+    <div class="card">
+
+      <label for="sessionId">Session ID</label>
       <input id="sessionId" value="demo123" />
-    </label>
-    <button id="connectBtn">Connect</button>
-  </div>
 
-  <p class="small">Use big, simple cues. Wearer should have wearer.html open on their phone with the same session ID.</p>
+      <button class="button" id="connectBtn">Connect</button>
 
-  <div id="controls" style="display:none;">
-    <div class="row">
-      <button onclick="sendCmd('stop')">STOP</button>
-      <button onclick="sendCmd('forward')">Forward</button>
+      <p class="small">
+        Use clear, simple cues.  
+        The wearer must have <b>wearer.html</b> open with the same session ID.
+      </p>
+
+      <div id="controls" style="display:none;">
+
+        <div class="grid">
+          <button class="cmd-btn stop" onclick="sendCmd('stop')">STOP</button>
+          <button class="cmd-btn" onclick="sendCmd('forward')">Forward</button>
+
+          <button class="cmd-btn" onclick="sendCmd('turn_left')">Turn Left</button>
+          <button class="cmd-btn" onclick="sendCmd('turn_right')">Turn Right</button>
+
+          <button class="cmd-btn" onclick="sendCmd('step_up')">Step Up</button>
+          <button class="cmd-btn" onclick="sendCmd('step_down')">Step Down</button>
+
+          <button class="cmd-btn" onclick="sendCmd('obstacle_left')">Obstacle Left</button>
+          <button class="cmd-btn" onclick="sendCmd('obstacle_right')">Obstacle Right</button>
+        </div>
+
+        <div class="status-box">
+          <p class="small" id="status"></p>
+        </div>
+
+      </div>
     </div>
-
-    <div class="row">
-      <button onclick="sendCmd('turn_left')">Turn Left</button>
-      <button onclick="sendCmd('turn_right')">Turn Right</button>
-    </div>
-
-    <div class="row">
-      <button onclick="sendCmd('step_up')">Step Up</button>
-      <button onclick="sendCmd('step_down')">Step Down</button>
-    </div>
-
-    <div class="row">
-      <button onclick="sendCmd('obstacle_left')">Obstacle Left</button>
-      <button onclick="sendCmd('obstacle_right')">Obstacle Right</button>
-    </div>
-
-    <p class="small" id="status"></p>
-  </div>
+  </main>
 
   <script type="module">
-    // 1) Replace with your Firebase web app config:
     const firebaseConfig = {
       apiKey: "YOUR_API_KEY",
       authDomain: "YOUR_PROJECT.firebaseapp.com",
@@ -72,7 +191,6 @@
 
     window.sendCmd = async function(cmd) {
       if (!session) return;
-      const base = ref(db, `sessions/${session}`);
       await set(ref(db, `sessions/${session}/command`), cmd);
       await set(ref(db, `sessions/${session}/ts`), Date.now());
       document.getElementById("status").textContent = `Sent: ${cmd}`;
