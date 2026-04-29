@@ -137,15 +137,18 @@ let socket = null;
 let session = null;
 let bleChar = null;
 
+// BLE service + characteristic UUIDs
 const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
 const CHAR_UUID    = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
 
+// Send a text command to the BLE haptic device
 async function sendToDevice(text) {
   if (!bleChar) return;
   const enc = new TextEncoder();
   await bleChar.writeValue(enc.encode(text));
 }
 
+// Connect to BLE device
 document.getElementById("bleBtn").onclick = async () => {
   try {
     const device = await navigator.bluetooth.requestDevice({
@@ -163,6 +166,7 @@ document.getElementById("bleBtn").onclick = async () => {
   }
 };
 
+// Connect to WebSocket server
 document.getElementById("firebaseBtn").onclick = () => {
   session = document.getElementById("sessionId").value.trim();
   if (!session) return alert("Enter a session id");
@@ -172,6 +176,7 @@ document.getElementById("firebaseBtn").onclick = () => {
   socket.onopen = () => {
     document.getElementById("status").textContent = "Connected to server ✓";
 
+    // Tell server this is the WEARER
     socket.send(JSON.stringify({
       type: "join",
       role: "wearer",
@@ -179,12 +184,19 @@ document.getElementById("firebaseBtn").onclick = () => {
     }));
   };
 
+  socket.onerror = (err) => {
+    console.error("WebSocket error:", err);
+    document.getElementById("status").textContent = "WebSocket error";
+  };
+
+  // Receive commands from guide
   socket.onmessage = async (event) => {
     const msg = JSON.parse(event.data);
 
     if (msg.type === "command") {
       document.getElementById("lastCmd").textContent = msg.command;
 
+      // Forward to BLE device if connected
       if (bleChar) {
         await sendToDevice(msg.command);
       }
