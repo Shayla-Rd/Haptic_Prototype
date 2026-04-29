@@ -173,89 +173,53 @@
 <script>
 let socket = null;
 let session = null;
-let bleChar = null;
 
-const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-const CHAR_UUID    = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
-
-async function sendToDevice(text) {
-  if (!bleChar) return;
-  const enc = new TextEncoder();
-  await bleChar.writeValue(enc.encode(text));
-}
-
-document.getElementById("bleBtn").onclick = async () => {
-  try {
-    const device = await navigator.bluetooth.requestDevice({
-      filters: [{ name: "Haptic Lanyard" }],
-      optionalServices: [SERVICE_UUID]
-    });
-
-    const server = await device.gatt.connect();
-    const service = await server.getPrimaryService(SERVICE_UUID);
-    bleChar = await service.getCharacteristic(CHAR_UUID);
-
-    document.getElementById("status").textContent = "BLE connected ✓";
-  } catch (e) {
-    document.getElementById("status").textContent = "BLE connect failed: " + e;
-  }
-};
-
-document.getElementById("firebaseBtn").onclick = () => {
+// When the user clicks "Connect"
+document.getElementById("connectBtn").onclick = () => {
   session = document.getElementById("sessionId").value.trim();
   if (!session) return alert("Enter a session id");
 
+  // Connect to your Node WebSocket server
   socket = new WebSocket("ws://localhost:3000/ws");
 
   socket.onopen = () => {
-    document.getElementById("status").textContent = "Connected to server ✓";
+    document.getElementById("controls").style.display = "block";
+    document.getElementById("status").textContent =
+      `Connected to server | Session: ${session}`;
 
+    // Tell server this is the GUIDE
     socket.send(JSON.stringify({
       type: "join",
-      role: "wearer",
+      role: "guide",
       session: session
     }));
   };
 
-  socket.onmessage = async (event) => {
-    const msg = JSON.parse(event.data);
+  socket.onerror = (err) => {
+    console.error("WebSocket error:", err);
+    document.getElementById("status").textContent = "WebSocket error";
+  };
 
-    if (msg.type === "command") {
-      document.getElementById("lastCmd").textContent = msg.command;
-
-      if (bleChar) {
-        await sendToDevice(msg.command);
-      }
-    }
+  socket.onmessage = (event) => {
+    console.log("Server:", event.data);
   };
 };
-</script>
 
+// Send a command to the wearer
+window.sendCmd = function(cmd) {
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    return alert("Not connected to server");
+  }
 
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-    import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+  socket.send(JSON.stringify({
+    type: "command",
+    session: session,
+    command: cmd,
+    ts: Date.now()
+  }));
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getDatabase(app);
-
-    let session = null;
-
-    window.sendCmd = async function(cmd) {
-      if (!session) return;
-      await set(ref(db, `sessions/${session}/command`), cmd);
-      await set(ref(db, `sessions/${session}/ts`), Date.now());
-      document.getElementById("status").textContent = `Sent: ${cmd}`;
-    };
-
-    document.getElementById("connectBtn").onclick = async () => {
-      session = document.getElementById("sessionId").value.trim();
-      if (!session) return alert("Enter a session id");
-      await signInAnonymously(auth);
-      document.getElementById("controls").style.display = "block";
-      document.getElementById("status").textContent = `Connected to session: ${session}`;
-    };
+  document.getElementById("status").textContent = `Sent: ${cmd}`;
+};
   </script>
 </body>
 </html>
