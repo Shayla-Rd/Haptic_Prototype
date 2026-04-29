@@ -170,14 +170,67 @@
     </div>
   </main>
 
-  <script type="module">
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT.firebaseapp.com",
-      databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
-      projectId: "YOUR_PROJECT",
-      appId: "YOUR_APP_ID"
-    };
+<script>
+let socket = null;
+let session = null;
+let bleChar = null;
+
+const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+const CHAR_UUID    = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+
+async function sendToDevice(text) {
+  if (!bleChar) return;
+  const enc = new TextEncoder();
+  await bleChar.writeValue(enc.encode(text));
+}
+
+document.getElementById("bleBtn").onclick = async () => {
+  try {
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [{ name: "Haptic Lanyard" }],
+      optionalServices: [SERVICE_UUID]
+    });
+
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(SERVICE_UUID);
+    bleChar = await service.getCharacteristic(CHAR_UUID);
+
+    document.getElementById("status").textContent = "BLE connected ✓";
+  } catch (e) {
+    document.getElementById("status").textContent = "BLE connect failed: " + e;
+  }
+};
+
+document.getElementById("firebaseBtn").onclick = () => {
+  session = document.getElementById("sessionId").value.trim();
+  if (!session) return alert("Enter a session id");
+
+  socket = new WebSocket("ws://localhost:3000/ws");
+
+  socket.onopen = () => {
+    document.getElementById("status").textContent = "Connected to server ✓";
+
+    socket.send(JSON.stringify({
+      type: "join",
+      role: "wearer",
+      session: session
+    }));
+  };
+
+  socket.onmessage = async (event) => {
+    const msg = JSON.parse(event.data);
+
+    if (msg.type === "command") {
+      document.getElementById("lastCmd").textContent = msg.command;
+
+      if (bleChar) {
+        await sendToDevice(msg.command);
+      }
+    }
+  };
+};
+</script>
+
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
